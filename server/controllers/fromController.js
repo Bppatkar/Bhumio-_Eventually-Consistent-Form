@@ -183,10 +183,11 @@ export const submitForm = async (req, res) => {
 
 export const getSubmissions = async (req, res) => {
   try {
-    const submission = await Submissions.find().sort({ submittedAt: -1 }).limit(10);
+    const submissions = await Submission.find().sort({ submittedAt: -1 }).limit(50);
+
     res.json({
-      total: submission.length,
-      submissions: submission.map(sub => ({
+      total: submissions.length,
+      submissions: submissions.map(sub => ({
         id: sub._id,
         email: sub.email,
         amount: sub.amount,
@@ -195,7 +196,7 @@ export const getSubmissions = async (req, res) => {
         submittedAt: sub.submittedAt,
         processedAt: sub.processedAt
       }))
-    })
+    });
   } catch (error) {
     console.error('Error in fetchingg submission:', error);
     res.status(500).json({ error: 'Error Fetching Submission' });

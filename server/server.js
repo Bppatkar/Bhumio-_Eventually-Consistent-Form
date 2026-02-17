@@ -7,7 +7,7 @@ import { submitForm, getSubmissions, checkDuplicate } from "./controllers/fromCo
 
 connectDB();
 const app = express();
-const PORT = 8000 || process.env.PORT;
+const PORT = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json());
@@ -33,7 +33,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+  console.log(`\n🚀 Server running on http://localhost:${PORT}/health`);
   console.log(`📝 Form API: POST http://localhost:${PORT}/api/submit`);
   console.log(`📊 Check submissions: GET http://localhost:${PORT}/api/submissions\n`);
 });
