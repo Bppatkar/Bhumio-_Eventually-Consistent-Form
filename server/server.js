@@ -13,15 +13,27 @@ app.use(cors());
 app.use(express.json());
 
 
-// Routes
+// POST Routes
 app.post('/api/submit', submitForm);
-app.get('/api/submissions', getSubmissions);
 app.post('/api/check-duplicate', checkDuplicate);
 
-// health check
+// GET Routes
+app.get('/api/submissions', getSubmissions);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-})
+});
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Eventually Consistent Form API',
+    version: '1.0.0',
+    endpoints: {
+      health: 'GET /api/health',
+      submit: 'POST /api/submit',
+      checkDuplicate: 'POST /api/check-duplicate',
+      submissions: 'GET /api/submissions'
+    }
+  });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -33,7 +45,10 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 Server running on http://localhost:${PORT}/health`);
-  console.log(`📝 Form API: POST http://localhost:${PORT}/api/submit`);
-  console.log(`📊 Check submissions: GET http://localhost:${PORT}/api/submissions\n`);
+  console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🏥 Health check: GET http://localhost:${PORT}/api/health`);
+  console.log(`📝 Submit form: POST http://localhost:${PORT}/api/submit`);
+  console.log(`🔍 Check duplicate: POST http://localhost:${PORT}/api/check-duplicate`);
+  console.log(`📊 Get submissions: GET http://localhost:${PORT}/api/submissions`);
+  console.log(`ℹ️  API info: GET http://localhost:${PORT}\n`);
 });
