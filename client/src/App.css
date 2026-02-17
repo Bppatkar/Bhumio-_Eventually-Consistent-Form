@@ -1,1 +1,18 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+* {
+  @apply transition-colors duration-200;
+}
+
+body {
+  @apply bg-slate-900 text-slate-100;
+}
+
+/* Custom animation delay utility */
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
