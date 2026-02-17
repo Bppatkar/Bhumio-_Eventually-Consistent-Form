@@ -1,9 +1,11 @@
-import React from 'react'
+import Form from './components/Form';
 
-const App = () => {
+function App() {
   return (
-    <div>App</div>
-  )
+    <div className="App">
+      <Form />
+    </div>
+  );
 }
 
-export default App
+export default App;
