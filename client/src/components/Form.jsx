@@ -7,7 +7,6 @@ import {
 import {
   CheckCircleIcon,
   XCircleIcon,
-  ClockIcon,
   RotateCcw,
   TrendingUpIcon,
   AlertTriangleIcon,
@@ -20,7 +19,7 @@ const Form = () => {
     amount: '',
   });
 
- 
+  // Form states
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [retryCount, setRetryCount] = useState(0);
@@ -28,7 +27,6 @@ const Form = () => {
   const [isDuplicate, setIsDuplicate] = useState(false);
   const [validationError, setValidationError] = useState('');
 
-  
   const [stats, setStats] = useState({
     total: 0,
     success: 0,
@@ -37,7 +35,6 @@ const Form = () => {
   });
   const [loadingStats, setLoadingStats] = useState(false);
 
-  
   const fetchStats = useCallback(async () => {
     setLoadingStats(true);
     try {
@@ -69,15 +66,12 @@ const Form = () => {
     }
   }, []);
 
-  
   useEffect(() => {
     fetchStats();
-    // Refresh stats every 5 seconds
     const interval = setInterval(fetchStats, 5000);
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  // Validation function
   const validateForm = useCallback(() => {
     if (!formData.email.trim()) {
       setValidationError('Email is required');
@@ -99,7 +93,6 @@ const Form = () => {
     return true;
   }, [formData]);
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -126,12 +119,11 @@ const Form = () => {
         setStatus('error');
         setIsDuplicate(true);
         setErrorMessage(
-          'This submission was already processed recently. Please try again in a few moments.'
+          'This email and amount combination has already been submitted. Please use different values.'
         );
         return;
       }
 
-     
       const result = await submitFormData(formData);
 
       if (result.success) {
@@ -144,7 +136,6 @@ const Form = () => {
         });
         // Reset form
         setFormData({ email: '', amount: '' });
-        // Refresh stats
         await fetchStats();
       } else {
         setStatus('error');
@@ -159,7 +150,6 @@ const Form = () => {
     }
   };
 
-  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -175,7 +165,6 @@ const Form = () => {
     }
   };
 
-  // Reset form to idle state
   const handleReset = () => {
     setFormData({ email: '', amount: '' });
     setStatus('idle');
@@ -186,20 +175,8 @@ const Form = () => {
     setIsDuplicate(false);
   };
 
-  // Retry failed submission with fresh form
-  const handleRetry = () => {
-    // Keep the form data but reset status to idle
-    setStatus('idle');
-    setErrorMessage('');
-    setValidationError('');
-    setRetryCount(0);
-    setIsDuplicate(false);
-    // User can now click Submit again with same or modified data
-  };
+  const isSubmitting = status === 'pending';
 
-  const isSubmitting = status === 'pending' || status === 'retrying';
-
-  // Calculate percentage for success rate
   const successRate =
     stats.total > 0 ? Math.round((stats.success / stats.total) * 100) : 0;
 
@@ -211,9 +188,12 @@ const Form = () => {
       </div>
 
       <div className="relative min-h-screen flex items-center justify-between py-12 px-4 sm:px-6 lg:px-8">
+        {/* LEFT SIDE - FORM */}
         <div className="w-full max-w-md">
+          {/* Card */}
           <div className="bg-slate-800 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-slate-700 hover:border-slate-600 transition-colors duration-300">
             <div className="px-8 py-10">
+              {/* Header */}
               <div className="mb-8">
                 <h2 className="text-4xl font-bold text-center bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">
                   Submit Details
@@ -223,6 +203,7 @@ const Form = () => {
                 </p>
               </div>
 
+              {/* STATE: IDLE */}
               {status === 'idle' && (
                 <div className="mb-6 p-4 rounded-xl border-2 border-slate-600/30 bg-slate-700/20 text-center">
                   <p className="text-xs text-slate-400">
@@ -231,6 +212,7 @@ const Form = () => {
                 </div>
               )}
 
+              {/* STATE: PENDING */}
               {status === 'pending' && (
                 <div className="mb-6 p-4 rounded-xl border-2 border-blue-500/30 bg-blue-500/10 backdrop-blur-sm animate-pulse">
                   <div className="flex items-center justify-center gap-3">
@@ -251,6 +233,7 @@ const Form = () => {
                 </div>
               )}
 
+              {/* STATE: SUCCESS */}
               {status === 'success' && (
                 <div className="mb-6 p-4 rounded-xl border-2 border-green-500/30 bg-green-500/10 backdrop-blur-sm">
                   <div className="flex items-start gap-3">
@@ -279,6 +262,7 @@ const Form = () => {
                 </div>
               )}
 
+              {/* STATE: ERROR */}
               {status === 'error' && (
                 <div className="mb-6 p-4 rounded-xl border-2 border-red-500/30 bg-red-500/10 backdrop-blur-sm">
                   <div className="flex items-start gap-3">
@@ -301,7 +285,6 @@ const Form = () => {
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Email Field */}
                 <div className="group">
                   <label
                     htmlFor="email"
@@ -330,7 +313,6 @@ const Form = () => {
                   )}
                 </div>
 
-                {/* Amount Field */}
                 <div className="group">
                   <label
                     htmlFor="amount"
@@ -361,7 +343,6 @@ const Form = () => {
                   </div>
                 </div>
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={isSubmitting || status === 'success'}
@@ -402,48 +383,18 @@ const Form = () => {
                       Submitted ✓
                     </>
                   )}
-                  {(status === 'idle' || status === 'error') && (
-                    <>{status === 'error' ? 'Try Again' : 'Submit'}</>
-                  )}
+                  {(status === 'idle' || status === 'error') && 'Submit'}
                 </button>
 
-                {/* Secondary Action Buttons */}
-                <div className="flex gap-3">
-                  {status === 'success' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        className="flex-1 py-2 px-4 rounded-lg font-medium text-slate-300 bg-slate-700/30 hover:bg-slate-700/50 transition-colors duration-300 border border-slate-600 hover:border-slate-500"
-                      >
-                        ➕ Submit Another
-                      </button>
-                    </>
-                  )}
-
-                  {status === 'error' && (
-                    <>
-                      {!isDuplicate && (
-                        <button
-                          type="button"
-                          onClick={handleRetry}
-                          className="flex-1 py-2 px-4 rounded-lg font-medium text-white bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 transition-colors duration-300 border border-yellow-500/50 flex items-center justify-center gap-2"
-                          title="Retry the same submission"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                          Retry
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        className="flex-1 py-2 px-4 rounded-lg font-medium text-slate-300 bg-slate-700/30 hover:bg-slate-700/50 transition-colors duration-300 border border-slate-600 hover:border-slate-500"
-                      >
-                        {isDuplicate ? '⏭️ Skip' : '↻ New Submit'}
-                      </button>
-                    </>
-                  )}
-                </div>
+                {(status === 'success' || status === 'error') && (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="w-full py-2 px-4 rounded-lg font-medium text-slate-300 bg-slate-700/30 hover:bg-slate-700/50 transition-colors duration-300 border border-slate-600 hover:border-slate-500"
+                  >
+                    {status === 'success' ? '➕ Submit Another' : '↻ Try Again'}
+                  </button>
+                )}
               </form>
 
               {/* Footer */}
@@ -462,6 +413,7 @@ const Form = () => {
           </div>
         </div>
 
+        {/* RIGHT SIDE - DASHBOARD STATS */}
         <div className="hidden lg:flex w-full max-w-sm flex-col gap-6 ml-8">
           {/* Stats Header */}
           <div className="flex items-center justify-between">
@@ -492,7 +444,6 @@ const Form = () => {
             <p className="text-xs text-slate-500">All submissions received</p>
           </div>
 
-          {/* Success Card */}
           <div className="bg-slate-800 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700 p-6 hover:border-slate-600 transition-colors">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-slate-400 text-sm font-semibold">
@@ -509,7 +460,6 @@ const Form = () => {
             </div>
           </div>
 
-          {/* Failed Card */}
           <div className="bg-slate-800 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700 p-6 hover:border-slate-600 transition-colors">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-slate-400 text-sm font-semibold">Failed</h4>
@@ -521,7 +471,6 @@ const Form = () => {
             <p className="text-xs text-slate-500">All failed submissions</p>
           </div>
 
-          {/* Total Retries Card */}
           <div className="bg-slate-800 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700 p-6 hover:border-slate-600 transition-colors">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-slate-400 text-sm font-semibold">
@@ -537,7 +486,6 @@ const Form = () => {
             </p>
           </div>
 
-          {/* Success Rate Progress */}
           <div className="bg-slate-800 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700 p-6 hover:border-slate-600 transition-colors">
             <h4 className="text-slate-400 text-sm font-semibold mb-4">
               Success Rate
@@ -555,7 +503,6 @@ const Form = () => {
         </div>
       </div>
 
-      {/* Decorative elements */}
       <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
       <div className="absolute -top-4 -left-4 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
     </div>

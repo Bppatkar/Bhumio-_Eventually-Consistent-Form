@@ -1,23 +1,23 @@
 import Submission from "../models/submissionModel.js";
 
-
 const simulateExternalAPI = async () => {
   const random = Math.random();
 
-  if (random < 0.5) {
-    // 40-45% success
-    return { status: 'success', statusCode: 200 }
-  } else if (random < 0.6) {
-    // 25% temporary failure
+  if (random < 0.30) {
+    // 30% immediate success
+    return { status: 'success', statusCode: 200 };
+  } else if (random < 0.70) {
+    // 40% temporary failure (503) - triggers auto-retry
     return { status: 'error', statusCode: 503, message: 'Service temporarily unavailable' };
   } else {
-    // 30-35 % delayed success 
-    const delay = Math.random() * 5000 + 5000; // 5- 10 seconds
-    await new Promise(resolve => setTimeout(resolve, delay));
-    return { status: 'success', statusCode: 200 }
-  }
-}
 
+    const delay = Math.random() * 5000 + 5000;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return { status: 'success', statusCode: 200 };
+  }
+};
+
+//  CHECK IF EMAIL ALREADY EXISTS 
 export const checkDuplicate = async (req, res) => {
   try {
     const { email, amount } = req.body;
@@ -28,33 +28,38 @@ export const checkDuplicate = async (req, res) => {
       });
     }
 
-    // checking for duplicate
-    const recentSubmission = await Submission.findOne({
+    // Check if THIS EXACT EMAIL+AMOUNT combination exists ANYWHERE in database
+
+    const existingSubmission = await Submission.findOne({
       email: email.toLowerCase(),
       amount: parseFloat(amount),
-      submittedAt: {
-        $gte: new Date(Date.now() - 30000) // Last 30 seconds
-      }
-    })
+      status: 'success' // Only check successful submissions
+    });
 
-    if (recentSubmission) {
+    if (existingSubmission) {
       return res.json({
         isDuplicate: true,
-        existingId: recentSubmission._id,
-        message: 'Duplicate submission detected'
-      })
+        existingId: existingSubmission._id,
+        message: 'This email and amount combination has already been submitted successfully',
+        previousSubmission: {
+          submittedAt: existingSubmission.submittedAt,
+          processedAt: existingSubmission.processedAt
+        }
+      });
     }
+
     res.json({ isDuplicate: false });
   } catch (error) {
     console.error('Duplicate check error:', error);
     res.status(500).json({ error: 'Error checking duplicate' });
   }
-}
+};
 
 export const submitForm = async (req, res) => {
   try {
     const { email, amount, idempotencyKey } = req.body;
 
+    // Validation
     if (!email || !amount) {
       return res.status(400).json({
         error: 'Email and amount are required'
@@ -74,6 +79,21 @@ export const submitForm = async (req, res) => {
       });
     }
 
+    // checking duplicate before submit and Prevent same email+amount from ever being submitted twice
+    const existingSuccess = await Submission.findOne({
+      email: email.toLowerCase(),
+      amount: parseFloat(amount),
+      status: 'success'
+    });
+
+    if (existingSuccess) {
+      return res.status(400).json({
+        isDuplicate: true,
+        message: 'This email and amount combination has already been submitted',
+        error: 'Duplicate submission'
+      });
+    }
+
     // Check for idempotency - if same key, return existing submission
     if (idempotencyKey) {
       const existingSubmission = await Submission.findOne({ idempotencyKey });
@@ -87,7 +107,7 @@ export const submitForm = async (req, res) => {
       }
     }
 
-    // Creating submission record
+    // Creating new  submission record
     const submission = new Submission({
       email: email.toLowerCase(),
       amount: parseFloat(amount),
@@ -97,7 +117,7 @@ export const submitForm = async (req, res) => {
 
     await submission.save();
 
-    // Simulating external API call with retries
+    // Simulate external API call with retries
     let retries = 0;
     const maxRetries = 3;
     let apiResult = null;
@@ -105,12 +125,15 @@ export const submitForm = async (req, res) => {
     while (retries < maxRetries) {
       try {
         apiResult = await simulateExternalAPI();
+        console.log(`Attempt ${retries + 1}: ${apiResult.statusCode}`);
 
         if (apiResult.statusCode === 200) {
-          // Success
+          // Success [hahahah]
           submission.status = 'success';
           submission.processedAt = new Date();
           await submission.save();
+
+          console.log(`✓ Success for submission ${submission._id}`);
 
           return res.status(200).json({
             message: 'Form submitted successfully',
@@ -119,19 +142,23 @@ export const submitForm = async (req, res) => {
             data: {
               email: submission.email,
               amount: submission.amount,
-              submittedAt: submission.submittedAt
+              submittedAt: submission.submittedAt,
+              processedAt: submission.processedAt
             }
           });
         } else if (apiResult.statusCode === 503) {
-          // if Temporary failure - retry
+          // Temporary failure - retry
           retries++;
           submission.retryCount = retries;
+          console.log(`Got 503, retry attempt: ${retries}`);
 
           if (retries >= maxRetries) {
-            // if Max retries reached
+            // Max retries reached............
             submission.status = 'failed';
             submission.errorMessage = 'Max retries reached. Service unavailable.';
             await submission.save();
+
+            console.log(`Max retries reached for submission ${submission._id}`);
 
             return res.status(503).json({
               message: 'Service temporarily unavailable',
@@ -142,19 +169,18 @@ export const submitForm = async (req, res) => {
             });
           }
 
-          // Wait before retrying (exponential backoff)
-          await new Promise(resolve =>
-            setTimeout(resolve, Math.pow(2, retries) * 1000)
-          );
+          // Waiting before retrying (exponential backoff)
+          const waitTime = Math.pow(2, retries) * 1000;
+          console.log(`Waiting ${waitTime}ms before retry ${retries}`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       } catch (err) {
         console.error(`API call attempt ${retries + 1} failed:`, err.message);
         retries++;
 
         if (retries < maxRetries) {
-          await new Promise(resolve =>
-            setTimeout(resolve, Math.pow(2, retries) * 1000)
-          );
+          const waitTime = Math.pow(2, retries) * 1000;
+          await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       }
     }
@@ -163,6 +189,8 @@ export const submitForm = async (req, res) => {
     submission.status = 'failed';
     submission.errorMessage = 'Failed after maximum retries';
     await submission.save();
+
+    console.log(`Final failure for submission ${submission._id}`);
 
     res.status(503).json({
       message: 'Submission failed after retries',
@@ -183,7 +211,7 @@ export const submitForm = async (req, res) => {
 
 export const getSubmissions = async (req, res) => {
   try {
-    const submissions = await Submission.find().sort({ submittedAt: -1 }).limit(50);
+    const submissions = await Submission.find().sort({ submittedAt: -1 }).limit(100);
 
     res.json({
       total: submissions.length,
@@ -198,7 +226,7 @@ export const getSubmissions = async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('Error in fetchingg submission:', error);
-    res.status(500).json({ error: 'Error Fetching Submission' });
+    console.error('Error fetching submissions:', error);
+    res.status(500).json({ error: 'Error fetching submissions' });
   }
-}
+};
